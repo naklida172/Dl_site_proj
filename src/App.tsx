@@ -1,53 +1,56 @@
 import React, { useEffect } from 'react';
 import { AppShell } from './components/Layout/AppShell';
-import { AutomationModule } from './components/Modules/AutomationModule';
-import { BookingModule } from './components/Modules/BookingModule';
-import { CalendarModule } from './components/Modules/CalendarModule';
-import { CrmModule } from './components/Modules/CrmModule';
-import { EmployeesModule } from './components/Modules/EmployeesModule';
-import { MarketingModule } from './components/Modules/MarketingModule';
-import { MessengerModule } from './components/Modules/MessengerModule';
-import { TasksModule } from './components/Modules/TasksModule';
-import { WarehouseModule } from './components/Modules/WarehouseModule';
-import { AppDataProvider, useAppData } from './store/AppDataContext';
+import { CommsModule } from './components/Modules/CommsModule';
+import { DeliveryModule } from './components/Modules/DeliveryModule';
+import { FloorModule } from './components/Modules/FloorModule';
+import { GuestsModule } from './components/Modules/GuestsModule';
+import { InventoryModule } from './components/Modules/InventoryModule';
+import { KitchenModule } from './components/Modules/KitchenModule';
+import { MenuDirectoryModule } from './components/Modules/MenuDirectoryModule';
+import { OperationsModule } from './components/Modules/OperationsModule';
+import { PosModule } from './components/Modules/PosModule';
+import { ReportsModule } from './components/Modules/ReportsModule';
+import { RestaurantProvider, useRestaurant } from './store/RestaurantContext';
 
-const ActiveModuleView: React.FC = () => {
-  const { activeModule, lang } = useAppData();
+const ActiveRestaurantView: React.FC = () => {
+  const { activeModule, lang } = useRestaurant();
 
   useEffect(() => {
-    document.title = lang === 'ru' ? 'CRM24 — Прототип' : 'CRM24 — Прототип (КЫР)';
+    document.title = lang === 'ru' ? 'Restaurant CRM — Прототип' : 'Restaurant CRM — Прототип (КЫР)';
     document.documentElement.lang = lang;
   }, [lang]);
 
   switch (activeModule) {
-    case 'crm':
-      return <CrmModule />;
-    case 'messenger':
-      return <MessengerModule />;
-    case 'calendar':
-      return <CalendarModule />;
-    case 'tasks':
-      return <TasksModule />;
-    case 'booking':
-      return <BookingModule />;
-    case 'warehouse':
-      return <WarehouseModule />;
-    case 'marketing':
-      return <MarketingModule />;
-    case 'automation':
-      return <AutomationModule />;
-    case 'employees':
-      return <EmployeesModule />;
+    case 'floor':
+      return <FloorModule />;
+    case 'pos':
+      return <PosModule />;
+    case 'kitchen':
+      return <KitchenModule />;
+    case 'delivery':
+      return <DeliveryModule />;
+    case 'comms':
+      return <CommsModule />;
+    case 'menu':
+      return <MenuDirectoryModule />;
+    case 'inventory':
+      return <InventoryModule />;
+    case 'guests':
+      return <GuestsModule />;
+    case 'operations':
+      return <OperationsModule />;
+    case 'reports':
+      return <ReportsModule />;
   }
 };
 
 export const App: React.FC = () => {
   return (
-    <AppDataProvider>
+    <RestaurantProvider>
       <AppShell>
-        <ActiveModuleView />
+        <ActiveRestaurantView />
       </AppShell>
-    </AppDataProvider>
+    </RestaurantProvider>
   );
 };
 

@@ -1,35 +1,378 @@
 export type Lang = 'ru' | 'ky';
 
-export type LText = {
-  ru: string;
-  ky: string;
-} | string;
+export type LText =
+  | {
+    ru: string;
+    ky: string;
+  }
+  | string;
 
-export type ModuleId =
-  | 'messenger'
-  | 'calendar'
-  | 'tasks'
-  | 'crm'
-  | 'booking'
-  | 'warehouse'
-  | 'marketing'
-  | 'automation'
-  | 'employees';
+export type RestaurantModuleId =
+  | 'floor'
+  | 'pos'
+  | 'kitchen'
+  | 'delivery'
+  | 'comms'
+  | 'menu'
+  | 'inventory'
+  | 'guests'
+  | 'operations'
+  | 'reports';
 
-export interface TabDef {
+export interface SubTabDef {
   id: string;
   label: { ru: string; ky: string };
 }
 
 export interface ModuleDef {
-  id: ModuleId;
+  id: RestaurantModuleId;
+  group: 'front' | 'back';
   label: { ru: string; ky: string };
   icon: string;
-  tabs: TabDef[];
+  searchPlaceholder: { ru: string; ky: string };
+  tabs: SubTabDef[];
 }
 
-// 1. Messenger
-export interface ChatMessage {
+// 1. Floor & Reservations
+export type HallZoneId = 'main' | 'terrace_vip';
+export type TableStatus = 'free' | 'occupied' | 'reserved' | 'precheck';
+export type TableShape = 'square' | 'round' | 'wide';
+
+export interface RestaurantTable {
+  id: string;
+  number: string;
+  zone: HallZoneId;
+  seats: number;
+  shape: TableShape;
+  x: number; // percentage 0..100
+  y: number; // percentage 0..100
+  status: TableStatus;
+  waiter?: string;
+  guestCount?: number;
+  openedAt?: string;
+  activeOrderId?: string;
+}
+
+export interface Reservation {
+  id: string;
+  guestName: string;
+  phone: string;
+  tableId: string;
+  tableNumber: string;
+  guestsCount: number;
+  time: string;
+  date: string;
+  deposit: number;
+  note: LText;
+  status: 'confirmed' | 'seated' | 'cancelled';
+}
+
+// 2. Menu Directory (r_keeper 7 structure)
+export interface MenuCategory {
+  id: string;
+  name: LText;
+  sortOrder: number;
+}
+
+export interface ModifierOption {
+  id: string;
+  name: LText;
+  priceDelta: number;
+  active: boolean;
+}
+
+export interface ModifierGroup {
+  id: string;
+  name: LText;
+  required: boolean;
+  maxSelect: number;
+  options: ModifierOption[];
+}
+
+export type PrintStationId = 'hot' | 'cold' | 'grill' | 'bar' | 'pastry';
+
+export interface MenuDish {
+  id: string;
+  code: string;
+  altCode: string;
+  categoryId: string;
+  name: LText;
+  printName: LText;
+  price: number;
+  taxRate: number;
+  stationId: PrintStationId;
+  modifierGroupIds: string[];
+  active: boolean;
+  stopListed: boolean;
+  remainingLimit?: number; // undefined = unlimited
+  classification: LText;
+}
+
+export interface ComboSet {
+  id: string;
+  name: LText;
+  dishIds: string[];
+  price: number;
+  active: boolean;
+  description: LText;
+}
+
+export interface PriceSchedule {
+  id: string;
+  name: LText;
+  type: LText;
+  timeWindow: string;
+  adjustmentLabel: string;
+  active: boolean;
+}
+
+// 3. POS & Orders
+export type CourseNumber = 1 | 2 | 3;
+
+export interface OrderItem {
+  id: string;
+  dishId: string;
+  name: LText;
+  unitPrice: number;
+  qty: number;
+  guestSeat: number;
+  course: CourseNumber;
+  modifiers: { optionId: string; name: LText; priceDelta: number }[];
+  note: string;
+  sentToKitchen: boolean;
+  stationId: PrintStationId;
+}
+
+export interface OrderTicket {
+  id: string;
+  orderNumber: string;
+  type: 'dine_in' | 'fast_check';
+  tableId?: string;
+  tableNumber?: string;
+  waiter: string;
+  guestsCount: number;
+  openedAt: string;
+  precheckRequested: boolean;
+  discountId?: string;
+  items: OrderItem[];
+}
+
+export type PaymentMethod = 'cash' | 'card' | 'qr' | 'bonus';
+
+export interface PaymentSplit {
+  method: PaymentMethod;
+  amount: number;
+}
+
+export interface ClosedCheck {
+  id: string;
+  checkNumber: string;
+  orderNumber: string;
+  tableLabel: LText;
+  waiter: string;
+  closedAt: string;
+  subtotal: number;
+  discountAmount: number;
+  total: number;
+  payments: PaymentSplit[];
+  itemsCount: number;
+  refunded: boolean;
+}
+
+// 4. Kitchen (KDS & Service Print)
+export type KitchenStatus = 'new' | 'cooking' | 'ready' | 'served';
+
+export interface KitchenTicket {
+  id: string;
+  orderNumber: string;
+  tableLabel: LText;
+  stationId: PrintStationId;
+  course: CourseNumber;
+  createdAt: string;
+  elapsedMin: number;
+  status: KitchenStatus;
+  waiter: string;
+  items: {
+    name: LText;
+    qty: number;
+    modifiers: LText[];
+    note?: string;
+  }[];
+}
+
+export interface PrintStation {
+  id: PrintStationId;
+  name: LText;
+  printerName: string;
+  backupPrinter: string;
+  online: boolean;
+  printedCount: number;
+}
+
+// 5. Delivery
+export type DeliveryStatus = 'accepted' | 'cooking' | 'on_way' | 'delivered';
+
+export interface DeliveryOrder {
+  id: string;
+  number: string;
+  clientName: string;
+  phone: string;
+  address: string;
+  zoneId: string;
+  zoneName: LText;
+  itemsSummary: LText;
+  amount: number;
+  deliveryFee: number;
+  courierId?: string;
+  courierName?: string;
+  paymentType: 'cash' | 'card' | 'online';
+  status: DeliveryStatus;
+  eta: string;
+}
+
+export interface Courier {
+  id: string;
+  name: string;
+  phone: string;
+  vehicle: LText;
+  activeOrders: number;
+  available: boolean;
+}
+
+export interface DeliveryZone {
+  id: string;
+  name: LText;
+  minOrder: number;
+  fee: number;
+  avgEta: string;
+  active: boolean;
+}
+
+// 6. Inventory & Tech Cards (StoreHouse integration)
+export interface IngredientStock {
+  id: string;
+  code: string;
+  name: LText;
+  unit: LText;
+  inStock: number;
+  minStock: number;
+  costPerUnit: number;
+  warehouse: LText;
+}
+
+export interface TechCardIngredient {
+  ingredientId: string;
+  name: LText;
+  grossQty: number;
+  netQty: number;
+  unit: LText;
+  costPerUnit: number;
+}
+
+export interface TechCard {
+  id: string;
+  dishId: string;
+  dishName: LText;
+  outputWeight: string;
+  sellingPrice: number;
+  ingredients: TechCardIngredient[];
+}
+
+export type StockDocType = 'receipt' | 'writeoff' | 'transfer' | 'inventory';
+
+export interface StockDocument {
+  id: string;
+  number: string;
+  type: StockDocType;
+  warehouse: LText;
+  date: string;
+  itemsCount: number;
+  totalAmount: number;
+  status: 'conducted' | 'draft';
+  responsible: string;
+}
+
+// 7. Guests & Loyalty
+export interface GuestProfile {
+  id: string;
+  name: string;
+  phone: string;
+  tier: 'Standard' | 'Silver' | 'Gold' | 'VIP';
+  bonusBalance: number;
+  visitsCount: number;
+  avgCheck: number;
+  favoriteDish: LText;
+  lastVisit: string;
+}
+
+export interface DiscountRule {
+  id: string;
+  name: LText;
+  kind: 'discount' | 'surcharge';
+  percent: number;
+  condition: LText;
+  active: boolean;
+}
+
+export interface GuestReview {
+  id: string;
+  guestName: string;
+  rating: number;
+  tableOrSource: LText;
+  comment: LText;
+  date: string;
+  handled: boolean;
+}
+
+// 8. Cash Shifts, OLAP & Staff
+export interface CashShift {
+  shiftNumber: number;
+  status: 'open' | 'closed';
+  openedAt: string;
+  cashier: string;
+  cashTotal: number;
+  cardTotal: number;
+  qrTotal: number;
+  bonusTotal: number;
+  checksCount: number;
+  refundsTotal: number;
+}
+
+export interface CashDrawerOp {
+  id: string;
+  type: 'in' | 'out';
+  amount: number;
+  reason: LText;
+  time: string;
+  author: string;
+}
+
+export interface StaffPermissions {
+  canVoidCheck: boolean;
+  canApplyDiscount: boolean;
+  canEditStopList: boolean;
+  canCloseShift: boolean;
+}
+
+export interface StaffMember {
+  id: string;
+  name: string;
+  initials: string;
+  role: LText;
+  pinCode: string;
+  onShift: boolean;
+  ordersServed: number;
+  salesTotal: number;
+  permissions: StaffPermissions;
+}
+
+export interface ToastMessage {
+  id: string;
+  text: string;
+}
+
+// 9. Comms (Shift Chat, Guest Inbox, Alerts)
+export interface ShiftChatMessage {
   id: string;
   sender: string;
   initials: string;
@@ -38,387 +381,119 @@ export interface ChatMessage {
   isMine: boolean;
 }
 
-export interface ChatThread {
+export interface ShiftChatChannel {
   id: string;
   name: LText;
-  role: LText;
-  initials: string;
-  online: boolean;
-  unread: number;
-  lastTime: string;
-  messages: ChatMessage[];
-}
-
-export interface ChannelItem {
-  id: string;
-  name: LText;
-  subscribers: number;
   description: LText;
-  posts: { id: string; author: string; time: string; title: LText; body: LText }[];
+  unread: number;
+  messages: ShiftChatMessage[];
 }
 
-export interface CollabRoom {
+export interface GuestInboxThread {
   id: string;
-  name: LText;
-  partner: LText;
-  membersCount: number;
-  status: LText;
-  messages: ChatMessage[];
-}
-
-export interface CallRecord {
-  id: string;
-  contact: string;
-  direction: 'incoming' | 'outgoing' | 'missed';
-  duration: string;
+  guestName: string;
+  phone: string;
+  channel: 'WhatsApp' | 'Instagram' | 'Telegram';
+  status: 'new' | 'replied' | 'converted';
   time: string;
-  note: LText;
+  messages: ShiftChatMessage[];
 }
 
-export interface OpenLineThread {
+export interface RestaurantAlert {
   id: string;
-  client: string;
-  channel: 'WhatsApp' | 'Telegram' | 'Instagram' | 'Web-чат';
-  status: 'new' | 'active' | 'closed';
-  waitTime: string;
-  messages: ChatMessage[];
-}
-
-export interface NotificationItem {
-  id: string;
-  module: LText;
+  source: LText;
   title: LText;
   time: string;
   read: boolean;
 }
 
-// 2. Calendar
-export interface CalendarEvent {
-  id: string;
-  day: number; // 1..30 in Nov 2026
-  time: string;
-  title: LText;
-  organizer: string;
-  scope: 'personal' | 'company';
-  category: 'meeting' | 'call' | 'deadline' | 'other';
-  location: LText;
-}
-
-export interface OpenSlotDay {
-  id: string;
-  weekday: LText;
-  slots: { time: string; enabled: boolean }[];
-}
-
-export interface MeetingRoom {
-  id: string;
-  name: LText;
-  capacity: number;
-  floor: LText;
-  bookings: { id: string; time: string; title: LText; owner: string; day: string }[];
-}
-
-// 3. Tasks
-export type TaskStage = 'new' | 'in_progress' | 'review' | 'done';
-export type TaskPriority = 'high' | 'medium' | 'low';
-
-export interface TaskItem {
-  id: string;
-  title: LText;
-  assignee: string;
-  creator: string;
-  project: LText;
-  deadline: string;
-  overdue?: boolean;
-  priority: TaskPriority;
-  stage: TaskStage;
-  storyPoints: number;
-  inSprint: boolean;
-}
-
-export interface ProjectItem {
-  id: string;
-  name: LText;
-  lead: string;
-  membersCount: number;
-  openTasks: number;
-  completedTasks: number;
-  deadline: string;
-  status: LText;
-}
-
-export interface TaskFlow {
-  id: string;
-  name: LText;
-  owner: string;
-  queueCount: number;
-  efficiency: number;
-  avgTime: LText;
-  active: boolean;
-}
-
-// 4. CRM
-export type DealStage = 'new' | 'prep' | 'invoice' | 'progress' | 'won';
-
-export interface DealItem {
-  id: string;
-  title: LText;
-  client: string;
-  company: string;
-  amount: number;
-  stage: DealStage;
-  responsible: string;
-  date: string;
-}
-
-export type LeadStatus = 'new' | 'in_work' | 'qualified' | 'converted';
-
-export interface LeadItem {
-  id: string;
-  title: LText;
-  name: string;
-  phone: string;
-  source: LText;
-  amount: number;
-  status: LeadStatus;
-  responsible: string;
-}
-
-export interface ContactItem {
+// 10. Suppliers
+export interface SupplierItem {
   id: string;
   name: string;
-  position: LText;
-  company: string;
-  phone: string;
-  email: string;
-  dealsCount: number;
-}
-
-export interface CompanyItem {
-  id: string;
-  name: string;
-  industry: LText;
-  city: LText;
-  phone: string;
-  revenue: number;
-  responsible: string;
-}
-
-export interface ProductItem {
-  id: string;
-  sku: string;
-  name: LText;
   category: LText;
-  price: number;
-  unit: LText;
-  stock: number;
-}
-
-export interface InvoiceItem {
-  id: string;
-  number: string;
-  title: LText;
-  client: string;
-  amount: number;
-  status: 'paid' | 'pending' | 'overdue';
-  date: string;
-}
-
-export interface SmartProcessItem {
-  id: string;
-  processId: 'contracts' | 'procurement' | 'service';
-  title: LText;
-  stage: LText;
-  initiator: string;
-  amount: number;
-  date: string;
-}
-
-// 5. Booking
-export interface BookingRecord {
-  id: string;
-  client: string;
+  contact: string;
   phone: string;
-  service: LText;
-  resourceId: string;
-  resourceName: string;
-  time: string;
-  date: string;
-  status: 'confirmed' | 'waiting' | 'completed';
+  deliveryDays: LText;
+  leadTime: LText;
 }
 
-export interface BookingResource {
-  id: string;
-  name: string;
-  specialty: LText;
-  workHours: string;
-  active: boolean;
-}
-
-export interface BookingService {
-  id: string;
-  name: LText;
-  category: LText;
-  durationMin: number;
-  price: number;
-}
-
-export interface WaitlistEntry {
-  id: string;
-  client: string;
-  phone: string;
-  service: LText;
-  preferredTime: string;
-  note: LText;
-}
-
-// 6. Warehouse
-export type WarehouseDocType = 'receipt' | 'shipment' | 'transfer' | 'writeoff';
-
-export interface WarehouseDoc {
-  id: string;
-  number: string;
-  type: WarehouseDocType;
-  warehouseFrom?: LText;
-  warehouseTo: LText;
-  itemsCount: number;
-  totalAmount: number;
-  status: 'conducted' | 'draft';
-  date: string;
-  responsible: string;
-}
-
-export interface WarehouseLocation {
-  id: string;
-  name: LText;
-  address: LText;
-  manager: string;
-  skuCount: number;
-  totalValue: number;
-}
-
-export interface StockBalanceItem {
-  id: string;
-  sku: string;
-  productName: LText;
-  warehouse: LText;
-  available: number;
-  reserved: number;
-  minLimit: number;
-  unit: LText;
-}
-
-// 7. Marketing
-export interface CampaignItem {
-  id: string;
-  name: LText;
-  channel: 'Email' | 'WhatsApp' | 'SMS' | 'Telegram';
-  segment: LText;
-  sentCount: number;
-  openRate: number;
-  clickRate: number;
-  status: 'sent' | 'scheduled' | 'draft';
-  date: string;
-}
-
-export interface AudienceSegment {
+// 11. Marketing & Banquets
+export interface GuestSegment {
   id: string;
   name: LText;
   criteria: LText;
   count: number;
-  updatedAt: string;
 }
 
-export interface AdChannelStat {
-  id: string;
-  name: string;
-  budget: number;
-  leads: number;
-  cpl: number;
-  roi: number;
-  active: boolean;
-}
-
-export interface MarketingTemplate {
+export interface MarketingCampaign {
   id: string;
   name: LText;
-  channel: string;
-  subject: LText;
-  previewText: LText;
+  channel: 'WhatsApp' | 'SMS' | 'Telegram';
+  segment: LText;
+  sentCount: number;
+  openRate: number;
+  status: 'sent' | 'scheduled';
+  date: string;
 }
 
-// 8. Automation
-export interface RobotRule {
+export type BanquetStage = 'inquiry' | 'menu_prep' | 'prepaid' | 'done';
+
+export interface BanquetDeal {
   id: string;
-  stage: DealStage;
   title: LText;
-  actionDesc: LText;
-  enabled: boolean;
+  clientName: string;
+  phone: string;
+  eventDate: string;
+  guestsCount: number;
+  amount: number;
+  stage: BanquetStage;
+  hall: LText;
 }
 
-export interface WorkflowItem {
+// 12. Operations (Checklists, Tasks, Calendar, Automation, SOPs)
+export interface ChecklistItem {
   id: string;
-  name: LText;
-  entity: LText;
-  description: LText;
-  runsCount: number;
-  lastRun: string;
+  zone: 'hall' | 'kitchen' | 'bar';
+  title: LText;
+  done: boolean;
+  timeSlot: string;
 }
 
-export interface TriggerRule {
+export interface ShiftTask {
   id: string;
-  event: LText;
-  targetStage: LText;
-  enabled: boolean;
+  title: LText;
+  assignee: string;
+  priority: 'high' | 'medium' | 'low';
+  due: string;
+  done: boolean;
 }
 
-export interface AutomationLog {
+export interface RestaurantEvent {
   id: string;
+  day: number;
   time: string;
-  source: LText;
-  entity: LText;
-  result: LText;
+  title: LText;
+  type: 'banquet' | 'music' | 'delivery' | 'meeting';
+  note: LText;
 }
 
-export interface IntegrationItem {
+export interface AutoRule {
+  id: string;
+  trigger: LText;
+  action: LText;
+  enabled: boolean;
+}
+
+export interface RestIntegration {
   id: string;
   name: string;
   category: LText;
-  description: LText;
+  desc: LText;
   connected: boolean;
 }
 
-// 9. Employees
-export interface EmployeeItem {
-  id: string;
-  name: string;
-  initials: string;
-  role: LText;
-  departmentId: string;
-  department: LText;
-  email: string;
-  phone: string;
-  status: 'online' | 'vacation' | 'offline';
-  hoursWeek: number;
-}
-
-export interface OrgDepartment {
-  id: string;
-  name: LText;
-  head: string;
-  parentId?: string;
-}
-
-export interface AbsenceRecord {
-  id: string;
-  employee: string;
-  type: 'vacation' | 'sick' | 'trip';
-  from: string;
-  to: string;
-  comment: LText;
-}
-
-export interface KnowledgeArticle {
+export interface SopArticle {
   id: string;
   title: LText;
   category: LText;
@@ -427,7 +502,21 @@ export interface KnowledgeArticle {
   content: LText;
 }
 
-export interface ToastMessage {
+// 13. Weekly Schedule & Absences
+export type ShiftSlotType = 'morning' | 'evening' | 'off';
+
+export interface StaffWeeklyShift {
+  staffId: string;
+  staffName: string;
+  role: LText;
+  days: ShiftSlotType[]; // 7 items: Mon..Sun
+}
+
+export interface StaffAbsence {
   id: string;
-  text: string;
+  staffName: string;
+  type: 'vacation' | 'sick' | 'day_off';
+  from: string;
+  to: string;
+  comment: LText;
 }

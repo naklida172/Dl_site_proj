@@ -1,9 +1,9 @@
 import React from 'react';
 import { Check } from 'lucide-react';
-import { useAppData } from '../../store/AppDataContext';
+import { useRestaurant } from '../../store/RestaurantContext';
 
 export const ToastStack: React.FC = () => {
-  const { toasts } = useAppData();
+  const { toasts } = useRestaurant();
 
   if (toasts.length === 0) return null;
 

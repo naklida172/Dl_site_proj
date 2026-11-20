@@ -1,36 +1,38 @@
 import React from 'react';
 import {
+  BarChart3,
   Bell,
-  Briefcase,
-  CalendarClock,
-  CalendarDays,
-  CheckSquare,
-  ChevronLeft,
-  ChevronRight,
-  Megaphone,
-  Menu,
+  Bike,
+  BookOpen,
+  Boxes,
+  ChefHat,
+  HeartHandshake,
+  LayoutGrid,
   MessageSquare,
-  Package,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Plus,
+  Receipt,
   Search,
-  Users,
-  Workflow,
+  SlidersHorizontal,
   X,
 } from 'lucide-react';
-import { MODULES, UI, tx } from '../../i18n/translations';
-import { useAppData } from '../../store/AppDataContext';
-import { ModuleId } from '../../types';
+import { RESTAURANT_MODULES, UI, tx } from '../../i18n/translations';
+import { useRestaurant } from '../../store/RestaurantContext';
+import { RestaurantModuleId } from '../../types';
 import { ToastStack } from './Toast';
 
 const ICON_MAP: Record<string, React.ReactNode> = {
-  Briefcase: <Briefcase size={16} strokeWidth={1.8} />,
-  MessageSquare: <MessageSquare size={16} strokeWidth={1.8} />,
-  CalendarDays: <CalendarDays size={16} strokeWidth={1.8} />,
-  CheckSquare: <CheckSquare size={16} strokeWidth={1.8} />,
-  CalendarClock: <CalendarClock size={16} strokeWidth={1.8} />,
-  Package: <Package size={16} strokeWidth={1.8} />,
-  Megaphone: <Megaphone size={16} strokeWidth={1.8} />,
-  Workflow: <Workflow size={16} strokeWidth={1.8} />,
-  Users: <Users size={16} strokeWidth={1.8} />,
+  LayoutGrid: <LayoutGrid size={17} strokeWidth={1.8} />,
+  Receipt: <Receipt size={17} strokeWidth={1.8} />,
+  ChefHat: <ChefHat size={17} strokeWidth={1.8} />,
+  Bike: <Bike size={17} strokeWidth={1.8} />,
+  MessageSquare: <MessageSquare size={17} strokeWidth={1.8} />,
+  BookOpen: <BookOpen size={17} strokeWidth={1.8} />,
+  Boxes: <Boxes size={17} strokeWidth={1.8} />,
+  HeartHandshake: <HeartHandshake size={17} strokeWidth={1.8} />,
+  SlidersHorizontal: <SlidersHorizontal size={17} strokeWidth={1.8} />,
+  BarChart3: <BarChart3 size={17} strokeWidth={1.8} />,
 };
 
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -41,178 +43,244 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     setActiveModule,
     activeTab,
     setActiveTab,
-    sidebarOpen,
-    setSidebarOpen,
+    railCollapsed,
+    setRailCollapsed,
     searchQuery,
     setSearchQuery,
-    chats,
-    events,
-    tasks,
-    deals,
-    bookings,
-    warehouseDocs,
-    campaigns,
-    robots,
-    employees,
-    notifications,
-  } = useAppData();
+    tables,
+    orders,
+    kitchenTickets,
+    deliveryOrders,
+    shiftChats,
+    guestInbox,
+    alerts,
+    dishes,
+    ingredients,
+    guests,
+    checklists,
+    cashShift,
+    createFastOrder,
+  } = useRestaurant();
 
-  const currentModuleDef = MODULES.find((m) => m.id === activeModule) ?? MODULES[0];
-  const unreadNotifs = notifications.filter((n) => !n.read).length;
+  const currentMod = RESTAURANT_MODULES.find((m) => m.id === activeModule) ?? RESTAURANT_MODULES[0];
+  const frontMods = RESTAURANT_MODULES.filter((m) => m.group === 'front');
+  const backMods = RESTAURANT_MODULES.filter((m) => m.group === 'back');
+  const unreadAlerts = alerts.filter((a) => !a.read).length;
 
-  const getBadgeCount = (id: ModuleId): number => {
+  const getModuleCount = (id: RestaurantModuleId): number | undefined => {
     switch (id) {
-      case 'messenger':
-        return chats.reduce((acc, c) => acc + c.unread, 0);
-      case 'calendar':
-        return events.length;
-      case 'tasks':
-        return tasks.filter((t) => t.stage !== 'done').length;
-      case 'crm':
-        return deals.length;
-      case 'booking':
-        return bookings.length;
-      case 'warehouse':
-        return warehouseDocs.length;
-      case 'marketing':
-        return campaigns.length;
-      case 'automation':
-        return robots.filter((r) => r.enabled).length;
-      case 'employees':
-        return employees.length;
+      case 'floor':
+        return tables.filter((t) => t.status === 'occupied' || t.status === 'precheck').length;
+      case 'pos':
+        return orders.length;
+      case 'kitchen':
+        return kitchenTickets.filter((k) => k.status !== 'served').length;
+      case 'delivery':
+        return deliveryOrders.filter((d) => d.status !== 'delivered').length;
+      case 'comms':
+        return (
+          shiftChats.reduce((s, c) => s + c.unread, 0) +
+          guestInbox.filter((g) => g.status === 'new').length
+        );
+      case 'menu':
+        return dishes.length;
+      case 'inventory':
+        return ingredients.filter((i) => i.inStock < i.minStock).length || undefined;
+      case 'guests':
+        return guests.length;
+      case 'operations':
+        return checklists.filter((c) => !c.done).length || undefined;
+      case 'reports':
+        return undefined;
     }
   };
 
-  const toggleSidebar = () => setSidebarOpen((prev) => !prev);
-
   return (
-    <div className="app-shell">
-      {/* Top Panel matching Ref/0.png */}
-      <header className="topbar">
-        <div className={`topbar-anchor ${sidebarOpen ? 'open' : 'closed'}`}>
+    <div className="rcrm-shell">
+      <aside className={`rcrm-rail ${railCollapsed ? 'collapsed' : ''}`}>
+        <div className="rail-brand">
+          {!railCollapsed && (
+            <div className="brand-mark-wrap">
+              <span className="brand-emblem">R</span>
+              <div className="brand-titles">
+                <span className="brand-title">Restaurant CRM</span>
+                <span className="brand-sub">{tx(UI.common.brandSub, lang)}</span>
+              </div>
+            </div>
+          )}
           <button
             type="button"
-            className="anchor-burger"
-            onClick={toggleSidebar}
-            title={sidebarOpen ? (lang === 'ru' ? 'Свернуть меню' : 'Менюну жыйноо') : (lang === 'ru' ? 'Открыть меню' : 'Менюну ачуу')}
-            aria-label="Toggle sidebar"
+            className="rail-toggle-btn"
+            onClick={() => setRailCollapsed((p) => !p)}
+            title={railCollapsed ? 'Развернуть панель' : 'Свернуть панель'}
+            aria-label="Toggle navigation rail"
           >
-            <Menu size={17} strokeWidth={1.9} />
-          </button>
-
-          <span className="anchor-divider" />
-
-          <button type="button" className="anchor-brand" onClick={toggleSidebar}>
-            <span className="anchor-brand-text">
-              <span className="anchor-logo-box">24</span>
-              <span>CRM</span>
-            </span>
-            <span className="anchor-chevron">
-              {sidebarOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
-            </span>
+            {railCollapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
           </button>
         </div>
 
-        {/* Unique Top-Panel Options for Active Module */}
-        <nav className="topbar-tabs-wrap" aria-label="Module options">
-          {currentModuleDef.tabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              className={`topbar-tab ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              {tx(tab.label, lang)}
-            </button>
-          ))}
-        </nav>
+        <div className="rail-scroll">
+          <div>
+            {!railCollapsed && <div className="rail-group-label">{tx(UI.groups.front, lang)}</div>}
+            <div className="rail-nav-list">
+              {frontMods.map((mod) => {
+                const count = getModuleCount(mod.id);
+                const isActive = activeModule === mod.id;
+                return (
+                  <button
+                    key={mod.id}
+                    type="button"
+                    className={`rail-item ${isActive ? 'active' : ''}`}
+                    title={tx(mod.label, lang)}
+                    onClick={() => setActiveModule(mod.id)}
+                  >
+                    <span className="rail-item-left">
+                      {ICON_MAP[mod.icon]}
+                      {!railCollapsed && <span>{tx(mod.label, lang)}</span>}
+                    </span>
+                    {!railCollapsed && count !== undefined && <span className="rail-item-badge">{count}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-        {/* Right Utility Cluster */}
-        <div className="topbar-utils">
-          <div className="topbar-search">
-            <Search size={14} className="topbar-search-icon" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={tx(UI.common.searchPlaceholder, lang)}
-            />
-            {searchQuery && (
+          <div>
+            {!railCollapsed && <div className="rail-group-label">{tx(UI.groups.back, lang)}</div>}
+            <div className="rail-nav-list">
+              {backMods.map((mod) => {
+                const count = getModuleCount(mod.id);
+                const isActive = activeModule === mod.id;
+                return (
+                  <button
+                    key={mod.id}
+                    type="button"
+                    className={`rail-item ${isActive ? 'active' : ''}`}
+                    title={tx(mod.label, lang)}
+                    onClick={() => setActiveModule(mod.id)}
+                  >
+                    <span className="rail-item-left">
+                      {ICON_MAP[mod.icon]}
+                      {!railCollapsed && <span>{tx(mod.label, lang)}</span>}
+                    </span>
+                    {!railCollapsed && count !== undefined && <span className="rail-item-badge">{count}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div className="rail-footer">
+          {railCollapsed ? (
+            <button
+              type="button"
+              className="rail-toggle-btn"
+              style={{ width: '100%' }}
+              onClick={() => setActiveModule('reports', 'shift')}
+              title={`${tx(UI.common.shift, lang)} #${cashShift.shiftNumber}`}
+            >
+              <span className={`shift-dot ${cashShift.status === 'closed' ? 'closed' : ''}`} />
+            </button>
+          ) : (
+            <button type="button" className="shift-chip" onClick={() => setActiveModule('reports', 'shift')}>
+              <span className="shift-dot-row">
+                <span className={`shift-dot ${cashShift.status === 'closed' ? 'closed' : ''}`} />
+                <span>
+                  {tx(UI.common.shift, lang)} #{cashShift.shiftNumber} ·{' '}
+                  {cashShift.status === 'open' ? tx(UI.common.shiftOpen, lang) : tx(UI.common.shiftClosed, lang)}
+                </span>
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--ink-muted)' }}>{tx(UI.common.prototype, lang)}</span>
+            </button>
+          )}
+        </div>
+      </aside>
+
+      <div className="rcrm-main-col">
+        <header className="rcrm-cmdbar">
+          <div className="cmd-left">
+            <h1 className="cmd-module-title">{tx(currentMod.label, lang)}</h1>
+            <div className="smart-search">
+              <Search size={14} className="smart-search-icon" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={tx(currentMod.searchPlaceholder, lang)}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="smart-search-clear"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Clear search"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="cmd-right">
+            <button type="button" className="btn btn-primary btn-sm" onClick={createFastOrder}>
+              <Plus size={14} />
+              {tx(UI.common.quickOrder, lang)}
+            </button>
+
+            <div className="lang-switch" role="group" aria-label="Language switcher">
               <button
                 type="button"
-                className="topbar-search-clear"
-                onClick={() => setSearchQuery('')}
-                aria-label="Clear search"
+                className={`lang-btn ${lang === 'ru' ? 'active' : ''}`}
+                onClick={() => setLang('ru')}
               >
-                <X size={13} />
+                RU
               </button>
-            )}
-          </div>
+              <button
+                type="button"
+                className={`lang-btn ${lang === 'ky' ? 'active' : ''}`}
+                onClick={() => setLang('ky')}
+              >
+                КЫР
+              </button>
+            </div>
 
-          <div className="lang-switch" role="group" aria-label="Language switcher">
             <button
               type="button"
-              className={`lang-btn ${lang === 'ru' ? 'active' : ''}`}
-              onClick={() => setLang('ru')}
+              className="icon-btn"
+              title={lang === 'ru' ? 'Оповещения' : 'Билдирмелер'}
+              onClick={() => setActiveModule('comms', 'alerts')}
             >
-              RU
+              <Bell size={15} />
+              {unreadAlerts > 0 && <span className="notif-dot">{unreadAlerts}</span>}
             </button>
-            <button
-              type="button"
-              className={`lang-btn ${lang === 'ky' ? 'active' : ''}`}
-              onClick={() => setLang('ky')}
-            >
-              КЫР
-            </button>
-          </div>
 
-          <button
-            type="button"
-            className="icon-btn"
-            title={lang === 'ru' ? 'Уведомления' : 'Билдирмелер'}
-            onClick={() => setActiveModule('messenger', 'notifications')}
-          >
-            <Bell size={15} />
-            {unreadNotifs > 0 && <span className="notif-badge">{unreadNotifs}</span>}
-          </button>
-
-          <div className="avatar-pill" title="Азамат Беков">
-            АБ
+            <div className="staff-chip">
+              <span className="avatar-circle">АС</span>
+              <span style={{ fontSize: 12, fontWeight: 600 }}>Айжан С.</span>
+            </div>
           </div>
+        </header>
+
+        <div className="subnav-bar">
+          <div className="subnav-pills">
+            {currentMod.tabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                className={`subnav-pill ${activeTab === tab.id ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                {tx(tab.label, lang)}
+              </button>
+            ))}
+          </div>
+          <span style={{ fontSize: 11.5, color: 'var(--ink-muted)', whiteSpace: 'nowrap' }}>
+            20.11.2026 · {cashShift.checksCount} {lang === 'ru' ? 'чеков' : 'чек'}
+          </span>
         </div>
-      </header>
 
-      {/* Body: Collapsible Left Side Panel + Main Content */}
-      <div className="shell-body">
-        <aside className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
-          <nav className="sidebar-nav" aria-label="Main modules">
-            {MODULES.map((mod) => {
-              const count = getBadgeCount(mod.id);
-              const isActive = activeModule === mod.id;
-              return (
-                <button
-                  key={mod.id}
-                  type="button"
-                  className={`sidebar-item ${isActive ? 'active' : ''}`}
-                  onClick={() => setActiveModule(mod.id)}
-                >
-                  <span className="sidebar-item-left">
-                    {ICON_MAP[mod.icon]}
-                    <span className="sidebar-item-label">{tx(mod.label, lang)}</span>
-                  </span>
-                  <span className="sidebar-count">{count}</span>
-                </button>
-              );
-            })}
-          </nav>
-
-          <div className="sidebar-footer">
-            <span>{tx(UI.common.prototypeNote, lang)}</span>
-            <span>v1.0</span>
-          </div>
-        </aside>
-
-        <main className="main-content">{children}</main>
+        <main className="rcrm-workspace">{children}</main>
       </div>
 
       <ToastStack />
